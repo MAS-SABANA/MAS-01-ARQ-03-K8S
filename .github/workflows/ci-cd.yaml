@@ -1,0 +1,103 @@
+name: CI/CD – Build & Deploy Microservice
+
+# Dispara en cada push a la rama 'main'
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "microservice/**"
+      - "helm/**"
+      - ".github/workflows/ci-cd.yaml"
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/microservice-demo
+
+jobs:
+  # ─────────────────────────────────────────
+  # 1. BUILD & PUSH imagen Docker
+  # ─────────────────────────────────────────
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login a Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extraer metadatos (tag = sha corto)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build y Push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./microservice
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────
+  # 2. DEPLOY vía ArgoCD (actualiza image.tag)
+  # ─────────────────────────────────────────
+  deploy:
+    name: Update ArgoCD image tag
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Instalar ArgoCD CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+      - name: Login a ArgoCD
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username admin \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+
+      - name: Actualizar imagen en ArgoCD
+        run: |
+          argocd app set microservice-demo \
+            --helm-set image.tag=${{ needs.build.outputs.image_tag }}
+
+      - name: Sincronizar aplicación
+        run: |
+          argocd app sync microservice-demo --timeout 120
+
+      - name: Esperar rollout
+        run: |
+          argocd app wait microservice-demo \
+            --health \
+            --timeout 180
+
+      - name: Resumen del deploy
+        run: |
+          echo "✅ Deploy exitoso"
+          echo "   Imagen: ${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}"
+          argocd app get microservice-demo

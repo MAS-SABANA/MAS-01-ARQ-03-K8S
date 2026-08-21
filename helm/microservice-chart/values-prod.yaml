@@ -1,0 +1,25 @@
+# Override para producción
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: microservice.prod.example.com
+      paths:
+        - path: /
+          pathType: Prefix

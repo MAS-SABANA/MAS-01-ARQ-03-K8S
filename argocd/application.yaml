@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: microservice-demo
+  namespace: argocd
+  # Borrar en cascada si se elimina esta Application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # --- Fuente: repositorio Git con los charts de Helm ---
+  source:
+    repoURL: https://github.com/TU-USUARIO/TU-REPO.git  # <-- reemplazar
+    targetRevision: main                                  # rama a observar
+    path: helm/microservice-chart                         # ruta del chart dentro del repo
+
+    helm:
+      releaseName: microservice-demo
+      valueFiles:
+        - values.yaml
+      # Parámetros que el pipeline puede sobrescribir vía argocd app set
+      parameters:
+        - name: image.tag
+          value: "latest"
+
+  # --- Destino: clúster y namespace ---
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservice
+
+  # --- Política de sincronización automática (GitOps) ---
+  syncPolicy:
+    automated:
+      prune: true      # elimina recursos que ya no existen en Git
+      selfHeal: true   # revierte cambios manuales en el clúster
+    syncOptions:
+      - CreateNamespace=true   # crea el namespace si no existe
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        maxDuration: 3m
+        factor: 2
+
+  # --- Health checks adicionales ---
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas   # ignorar si HPA cambia replicas manualmente

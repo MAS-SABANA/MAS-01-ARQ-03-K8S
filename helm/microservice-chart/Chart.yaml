@@ -1,0 +1,13 @@
+apiVersion: v2
+name: microservice-chart
+description: Helm chart para microservicio demo K8s - Unisabana
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Santiago Lopez
+    email: santiagolopezamaya95@gmail.com
+keywords:
+  - microservice
+  - flask
+  - kubernetes
