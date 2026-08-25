@@ -140,11 +140,17 @@ docker push tu-usuario/microservice-demo:latest
 # Opción A: minikube
 minikube start
 
+# Opción A.1: minikube con driver docker (si ya tienes Docker Desktop instalado)
+minikube start --driver=docker
+
 # Opción B: kind
 kind create cluster --name k8s-demo
 
 # Crear namespace
 kubectl create namespace microservice
+
+# Verificar que el clúster responde
+kubectl get nodes
 ```
 
 Ver componentes K8s desplegados en [`diagrams/k8s-componentes.md`](./diagrams/k8s-componentes.md).
