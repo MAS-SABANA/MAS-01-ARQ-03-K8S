@@ -1,6 +1,6 @@
 # Desplegar ArgoCD en un clúster real (DigitalOcean Kubernetes)
 
-> Objetivo: mover ArgoCD de minikube (local, sin IP pública) a un clúster de Kubernetes gestionado en DigitalOcean (**DOKS**), que sí tiene una IP pública alcanzable desde internet — así el job `deploy` de [.github/workflows/ci-cd.yaml](../.github/workflows/ci-cd.yaml) puede conectarse de verdad, tal como pasaría en un entorno productivo.
+> Objetivo: mover ArgoCD de minikube (local, sin IP pública) a un clúster de Kubernetes gestionado en DigitalOcean (**DOKS**), que sí tiene una IP pública alcanzable desde internet — así el job `deploy` de [.github/workflows/ci-cd.yaml](../.github/workflows/ci-cd.yaml) puede conectarse de verdad, tal como ocurriría en un entorno productivo.
 >
 > Diagramas de esta arquitectura (local vs nube, infraestructura DOKS, secuencia completa): [`diagrams/despliegue-digitalocean.md`](../diagrams/despliegue-digitalocean.md)
 
@@ -18,24 +18,24 @@ graph LR
   ARGO -->|"vive dentro de"| DO
 ```
 
-## 0. Costos (léelo antes de crear nada)
+## 0. Costos (revisar antes de crear cualquier recurso)
 
-DigitalOcean **no cobra por el control plane** de Kubernetes (a diferencia de AWS EKS), solo por lo que uses:
+DigitalOcean **no cobra por el control plane** de Kubernetes (a diferencia de AWS EKS), solo por los recursos que se utilicen:
 
 | Recurso | Costo aproximado |
 |---|---|
 | 1 nodo worker (`s-2vcpu-2gb`) | ~$18 USD/mes → prorrateado por hora (~$0.025/h) |
 | Load Balancer (para exponer ArgoCD) | ~$12 USD/mes → prorrateado por hora (~$0.017/h) |
 
-Con tus créditos gratis esto es prácticamente cero si lo usas solo durante el ejercicio, **pero hay que borrar el clúster y el Load Balancer cuando termines** (Sección 8) para no seguir consumiendo créditos día tras día. Verifica los precios actuales en el [pricing de DigitalOcean](https://www.digitalocean.com/pricing/kubernetes), pueden cambiar.
+Con los créditos gratuitos este costo es prácticamente nulo si el clúster se usa solo durante el ejercicio, **pero es necesario borrar el clúster y el Load Balancer al finalizar** (Sección 10) para no seguir consumiendo créditos día tras día. Se recomienda verificar los precios actuales en el [pricing de DigitalOcean](https://www.digitalocean.com/pricing/kubernetes), ya que pueden cambiar.
 
 ---
 
 ## 1. Crear cuenta y reclamar créditos
 
-1. Crea tu cuenta en [digitalocean.com](https://www.digitalocean.com/) (o entra si ya tienes).
-2. Aplica tu promoción/créditos (por ejemplo, si tienes el [GitHub Student Developer Pack](https://education.github.com/pack), incluye créditos de DigitalOcean).
-3. DigitalOcean pide un método de pago aunque tengas créditos — es normal, solo se cobra si te quedas sin crédito.
+1. Crear una cuenta en [digitalocean.com](https://www.digitalocean.com/) (o iniciar sesión si ya existe una).
+2. Aplicar la promoción o créditos correspondientes (por ejemplo, el [GitHub Student Developer Pack](https://education.github.com/pack) incluye créditos de DigitalOcean).
+3. DigitalOcean solicita un método de pago aunque se disponga de créditos — es un comportamiento normal de la plataforma; el cobro solo se activa si los créditos se agotan.
 
 ## 2. Instalar y autenticar `doctl` (CLI de DigitalOcean)
 
@@ -43,11 +43,11 @@ Con tus créditos gratis esto es prácticamente cero si lo usas solo durante el 
 brew install doctl
 ```
 
-Genera un **Personal Access Token**: dashboard de DigitalOcean → **API** → **Generate New Token** (dale permisos de lectura/escritura), luego:
+Generar un **Personal Access Token**: dashboard de DigitalOcean → **API** → **Generate New Token** (con permisos de lectura/escritura), y luego:
 
 ```bash
 doctl auth init
-# pega el token cuando te lo pida
+# pegar el token cuando se solicite
 ```
 
 ## 3. Crear el clúster DOKS
@@ -59,11 +59,11 @@ doctl kubernetes cluster create microservice-demo \
   --wait
 ```
 
-- `--region nyc1` → elige la región más cercana a ti si quieres (`doctl kubernetes options regions` para ver todas).
-- `count=1` → un solo nodo alcanza para este ejercicio.
-- Al terminar, `doctl` **configura automáticamente tu `kubectl`** con un nuevo contexto apuntando al clúster remoto.
+- `--region nyc1` → puede sustituirse por la región más cercana (`doctl kubernetes options regions` para ver todas las disponibles).
+- `count=1` → un solo nodo es suficiente para este ejercicio.
+- Al finalizar, `doctl` **configura automáticamente el `kubectl` local** con un nuevo contexto apuntando al clúster remoto.
 
-Verifica que `kubectl` ya está hablando con el clúster de DigitalOcean y no con minikube:
+Verificar que `kubectl` está apuntando al clúster de DigitalOcean y no a minikube:
 
 ```bash
 kubectl config current-context
@@ -73,11 +73,11 @@ kubectl get nodes
 # debería mostrar 1 nodo con un nombre tipo pool1-xxxxx
 ```
 
-> Tu minikube local **no desaparece**, solo queda como otro contexto. Para volver a él más adelante: `kubectl config get-contexts` y luego `kubectl config use-context minikube`.
+> El contexto de minikube **no desaparece**, queda disponible como otro contexto más. Para volver a él posteriormente: `kubectl config get-contexts` y luego `kubectl config use-context minikube`.
 
 ## 4. Instalar ArgoCD en el clúster remoto
 
-Es el mismo script que ya usaste en local — como `kubectl` ahora apunta a DOKS, se instala ahí:
+Es el mismo script utilizado en el entorno local — como `kubectl` ahora apunta a DOKS, la instalación queda ahí:
 
 ```bash
 ./argocd/install-argocd.sh
@@ -85,18 +85,18 @@ Es el mismo script que ya usaste en local — como `kubectl` ahora apunta a DOKS
 
 ## 5. Exponer `argocd-server` con una IP pública real
 
-Por defecto el `Service` de ArgoCD es `ClusterIP` (solo accesible dentro del clúster, como en minikube). En DOKS lo cambiamos a `LoadBalancer`, y DigitalOcean crea automáticamente un balanceador de carga real con IP pública:
+Por defecto el `Service` de ArgoCD es `ClusterIP` (accesible solo dentro del clúster, igual que en minikube). En DOKS se cambia a `LoadBalancer`, y DigitalOcean crea automáticamente un balanceador de carga real con IP pública:
 
 ```bash
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 ```
 
-Espera a que DigitalOcean le asigne la IP (tarda 1-2 minutos):
+Esperar a que DigitalOcean asigne la IP (toma entre 1 y 2 minutos):
 
 ```bash
 kubectl get svc argocd-server -n argocd --watch
 # EXTERNAL-IP pasa de <pending> a una IP real, ej: 143.198.xxx.xxx
-# Ctrl+C cuando aparezca la IP
+# Ctrl+C una vez aparezca la IP
 ```
 
 ## 6. Obtener la contraseña del admin (en este clúster nuevo)
@@ -106,17 +106,17 @@ kubectl get secret argocd-initial-admin-secret -n argocd \
   -o jsonpath="{.data.password}" | base64 -d && echo
 ```
 
-> Es una contraseña **distinta** a la que generaste en minikube — cada instalación de ArgoCD genera la suya.
+> Es una contraseña **distinta** a la generada en minikube — cada instalación de ArgoCD genera la suya propia.
 
-## 7. Probar el login manualmente antes de tocar GitHub
+## 7. Probar el login manualmente antes de configurar GitHub
 
 ```bash
 argocd login <EXTERNAL-IP> --username admin --password <PASSWORD> --insecure
 ```
 
-`--insecure` sigue siendo necesario aquí porque ArgoCD usa un certificado autofirmado por defecto (no tienes un dominio + Let's Encrypt configurado) — es habitual en una prueba de concepto, aunque en un entorno productivo real se reemplaza por un `Ingress` con TLS válido.
+`--insecure` sigue siendo necesario en este punto porque ArgoCD usa por defecto un certificado autofirmado (no se ha configurado un dominio con Let's Encrypt) — es habitual en una prueba de concepto, aunque en un entorno productivo real se reemplaza por un `Ingress` con TLS válido.
 
-Agrega el repo y aplica el `Application` (igual que en el Paso 5 del README, pero ahora contra este clúster):
+Agregar el repositorio y aplicar el `Application` (igual que en el Paso 5 del README, pero ahora contra este clúster):
 
 ```bash
 argocd repo add https://github.com/MAS-SABANA/MAS-01-ARQ-03-K8S.git
@@ -132,15 +132,15 @@ argocd app get microservice-demo
 | Secret | Valor |
 |---|---|
 | `ARGOCD_SERVER` | `<EXTERNAL-IP>` (solo la IP, sin `https://` ni puerto) |
-| `ARGOCD_PASSWORD` | la contraseña del paso 6 |
+| `ARGOCD_PASSWORD` | la contraseña obtenida en la Sección 6 |
 
-`DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` ya los tenías configurados — no cambian.
+`DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` ya deberían estar configurados desde el Paso 7 del README — no cambian.
 
 ## 9. Probar el pipeline completo
 
-Haz un cambio pequeño en `microservice/` (por ejemplo un texto en `/health`) y haz `git push` a `main`. El job `build` construye y publica la imagen; el job `deploy` ahora sí puede conectarse a tu `ARGOCD_SERVER` real y hacer `argocd app sync` de verdad, desde un runner en la nube de GitHub hacia tu clúster en la nube de DigitalOcean.
+Realizar un cambio pequeño en `microservice/` (por ejemplo, un texto en `/health`) y hacer `git push` a `main`. El job `build` construye y publica la imagen; el job `deploy` ahora sí puede conectarse al `ARGOCD_SERVER` real y ejecutar `argocd app sync` de forma efectiva, desde un runner en la nube de GitHub hacia el clúster en la nube de DigitalOcean.
 
-Verifica el resultado apuntando `curl` a la IP pública del `Service` de tu microservicio (no al de ArgoCD):
+Verificar el resultado apuntando `curl` a la IP pública del `Service` del microservicio (no al de ArgoCD):
 
 ```bash
 kubectl get svc -n microservice
@@ -148,19 +148,19 @@ kubectl get svc -n microservice
 
 ---
 
-## 10. IMPORTANTE — Borrar todo cuando termines (para no gastar créditos)
+## 10. IMPORTANTE — Borrar todo al finalizar (para no consumir créditos innecesariamente)
 
 ```bash
-# Borra el clúster completo (nodos + control plane)
+# Elimina el clúster completo (nodos + control plane)
 doctl kubernetes cluster delete microservice-demo
 
-# Verifica que el Load Balancer también se haya eliminado
+# Confirma que el Load Balancer también se haya eliminado
 doctl compute load-balancer list
-# si queda alguno huérfano, bórralo:
+# si queda alguno huérfano, eliminarlo:
 doctl compute load-balancer delete <LB-ID>
 ```
 
-Confirma en el [panel web de DigitalOcean](https://cloud.digitalocean.com/kubernetes/clusters) → **Kubernetes** y **Networking → Load Balancers** que no quede nada corriendo.
+Confirmar en el [panel web de DigitalOcean](https://cloud.digitalocean.com/kubernetes/clusters) → **Kubernetes** y **Networking → Load Balancers** que no queden recursos activos.
 
 ---
 
@@ -168,8 +168,8 @@ Confirma en el [panel web de DigitalOcean](https://cloud.digitalocean.com/kubern
 
 | | Minikube (local) | DOKS (DigitalOcean) |
 |---|---|---|
-| Dónde vive | Tu laptop | La nube de DigitalOcean |
+| Dónde vive | Máquina local | La nube de DigitalOcean |
 | IP pública | No tiene | Sí (vía `LoadBalancer`) |
 | GitHub Actions puede conectarse | ❌ No | ✅ Sí |
-| Costo | Gratis | ~$0.04 USD/hora mientras esté encendido |
+| Costo | Gratis | ~$0.04 USD/hora mientras esté activo |
 | Uso típico | Desarrollo/aprendizaje | Producción / demo real de CI/CD |

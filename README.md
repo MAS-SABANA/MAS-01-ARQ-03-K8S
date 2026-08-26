@@ -130,7 +130,7 @@ docker login
 docker push tu-usuario/microservice-demo:latest
 ```
 
-> **Reemplaza** `tu-usuario` con tu usuario de Docker Hub o la URL de tu registry (GHCR, ECR, etc.).
+> **Nota:** sustituir `tu-usuario` por el usuario de Docker Hub correspondiente, o por la URL del registry utilizado (GHCR, ECR, etc.).
 
 ---
 
@@ -140,7 +140,7 @@ docker push tu-usuario/microservice-demo:latest
 # Opción A: minikube
 minikube start
 
-# Opción A.1: minikube con driver docker (si ya tienes Docker Desktop instalado)
+# Opción A.1: minikube con driver docker (si se cuenta con Docker Desktop instalado)
 minikube start --driver=docker
 
 # Opción B: kind
@@ -252,14 +252,14 @@ El script crea el namespace `argocd`, aplica el manifiesto oficial, espera que e
 
 ### Obtener la contraseña del admin
 
-ArgoCD genera una contraseña inicial aleatoria y la guarda como `Secret` de Kubernetes (no es un valor fijo). El script del paso anterior ya la imprime al final, pero si la necesitas de nuevo (o la perdiste de vista en el output), recupérala así:
+ArgoCD genera una contraseña inicial aleatoria y la guarda como `Secret` de Kubernetes (no es un valor fijo). El script del paso anterior ya la imprime al final, pero si es necesario obtenerla nuevamente (o se perdió de vista en la salida), puede recuperarse de la siguiente manera:
 
 ```bash
 kubectl get secret argocd-initial-admin-secret -n argocd \
   -o jsonpath="{.data.password}" | base64 -d && echo
 ```
 
-> El valor viene en Base64 dentro del Secret (así es como Kubernetes guarda cualquier Secret), por eso hay que decodificarlo con `base64 -d` para leerlo en texto plano. Guárdala: la usarás en el siguiente paso para el login.
+> El valor viene en Base64 dentro del Secret (así es como Kubernetes guarda cualquier Secret), por eso hay que decodificarlo con `base64 -d` para leerlo en texto plano. Debe conservarse, ya que se utilizará en el paso siguiente para el inicio de sesión.
 
 ### Acceder a la UI
 
@@ -310,9 +310,9 @@ Desde este punto ArgoCD **observa `main`** y sincroniza automáticamente cualqui
 
 ## Paso 6 – Configuración de DigitalOcean (o nube de preferencia)
 
-Hasta el Paso 5, ArgoCD corre únicamente en tu clúster local (minikube) — accesible solo desde tu propia máquina. Para que el pipeline de CI/CD del **Paso 7** pueda desplegar de verdad (el job `deploy` corre en un runner de GitHub, no en tu computador), ArgoCD necesita vivir en un clúster con una **dirección alcanzable desde internet**.
+Hasta el Paso 5, ArgoCD corre únicamente en el clúster local (minikube), accesible solo desde la máquina en local. Para que el pipeline de CI/CD del **Paso 7** pueda desplegar de verdad (el job `deploy` corre en un runner de GitHub, no en la máquina local), ArgoCD necesita vivir en un clúster con una **dirección alcanzable desde internet**.
 
-Este paso mueve ArgoCD de minikube a un clúster Kubernetes gestionado en la nube. La guía usa **DigitalOcean Kubernetes (DOKS)** como ejemplo (por sus créditos gratuitos y su simplicidad), pero el mismo procedimiento aplica a cualquier proveedor de tu preferencia (GKE, EKS, AKS, un VPS con `k3s`, etc.) — lo único que cambia es cómo se crea el clúster; instalar ArgoCD, exponerlo y conectar el pipeline es igual en todos.
+Este paso mueve ArgoCD de minikube a un clúster Kubernetes gestionado en la nube. La guía usa **DigitalOcean Kubernetes (DOKS)** como ejemplo (por sus créditos gratuitos y su simplicidad), pero el mismo procedimiento aplica a cualquier proveedor que se prefiera (GKE, EKS, AKS, un VPS con `k3s`, etc.) — lo único que cambia es cómo se crea el clúster; instalar ArgoCD, exponerlo y conectar el pipeline es igual en todos los casos.
 
 Guía paso a paso completa: **[`docs/despliegue-digitalocean.md`](./docs/despliegue-digitalocean.md)**
 Diagramas (local vs nube, infraestructura DOKS, secuencia completa): **[`diagrams/despliegue-digitalocean.md`](./diagrams/despliegue-digitalocean.md)**
@@ -357,16 +357,16 @@ flowchart LR
 
 ### Secrets requeridos en GitHub
 
-Ve a **Settings → Secrets and variables → Actions** y agrega:
+En **Settings → Secrets and variables → Actions**, agregar:
 
 | Secret               | Valor                              |
 |----------------------|------------------------------------|
-| `DOCKERHUB_USERNAME` | Tu usuario de Docker Hub           |
+| `DOCKERHUB_USERNAME` | Usuario de Docker Hub              |
 | `DOCKERHUB_TOKEN`    | Token de acceso de Docker Hub      |
 | `ARGOCD_SERVER`      | IP o dominio del servidor ArgoCD   |
 | `ARGOCD_PASSWORD`    | Contraseña del admin de ArgoCD     |
 
-> ⚠️ `ARGOCD_SERVER` debe ser una dirección **alcanzable desde internet** — el job `deploy` corre en un runner de GitHub, no en tu computador. Si ArgoCD solo vive en minikube (local), este job no puede conectarse. Guía paso a paso para desplegar ArgoCD en un clúster real y que el pipeline funcione de punta a punta: [`docs/despliegue-digitalocean.md`](./docs/despliegue-digitalocean.md).
+> ⚠️ `ARGOCD_SERVER` debe ser una dirección **alcanzable desde internet** — el job `deploy` corre en un runner de GitHub, no en la máquina local. Si ArgoCD solo vive en minikube (local), este job no puede conectarse. Guía paso a paso para desplegar ArgoCD en un clúster real y que el pipeline funcione de punta a punta: [`docs/despliegue-digitalocean.md`](./docs/despliegue-digitalocean.md).
 
 ---
 

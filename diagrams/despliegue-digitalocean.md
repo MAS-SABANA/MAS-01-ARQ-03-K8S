@@ -1,6 +1,6 @@
 # Local vs Nube – por qué migrar ArgoCD
 
-El job `deploy` de GitHub Actions corre en un runner **en la nube de GitHub**, no en tu computador. No puede alcanzar un ArgoCD que solo vive en minikube (`localhost`); sí puede alcanzar uno con IP pública en DigitalOcean.
+El job `deploy` de GitHub Actions corre en un runner **en la nube de GitHub**, no en la máquina local. No puede alcanzar un ArgoCD que solo vive en minikube (`localhost`); sí puede alcanzar uno con IP pública en DigitalOcean.
 
 ```mermaid
 graph TB
