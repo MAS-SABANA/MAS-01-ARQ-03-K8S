@@ -4,7 +4,6 @@ import os from 'os';
 const app = express();
 app.use(express.json());
 
-
 const PORT = parseInt(process.env.PORT ?? '8080', 10);
 const SERVICE_NAME = process.env.SERVICE_NAME ?? 'microservice-demo';
 const SERVICE_VERSION = process.env.SERVICE_VERSION ?? '1.0.0';
