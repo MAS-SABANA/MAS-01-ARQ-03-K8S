@@ -1,6 +1,8 @@
 # Desplegar ArgoCD en un clúster real (DigitalOcean Kubernetes)
 
 > Objetivo: mover ArgoCD de minikube (local, sin IP pública) a un clúster de Kubernetes gestionado en DigitalOcean (**DOKS**), que sí tiene una IP pública alcanzable desde internet — así el job `deploy` de [.github/workflows/ci-cd.yaml](../.github/workflows/ci-cd.yaml) puede conectarse de verdad, tal como pasaría en un entorno productivo.
+>
+> Diagramas de esta arquitectura (local vs nube, infraestructura DOKS, secuencia completa): [`diagrams/despliegue-digitalocean.md`](../diagrams/despliegue-digitalocean.md)
 
 ## Por qué esto resuelve el problema
 

@@ -315,6 +315,7 @@ Hasta el Paso 5, ArgoCD corre únicamente en tu clúster local (minikube) — ac
 Este paso mueve ArgoCD de minikube a un clúster Kubernetes gestionado en la nube. La guía usa **DigitalOcean Kubernetes (DOKS)** como ejemplo (por sus créditos gratuitos y su simplicidad), pero el mismo procedimiento aplica a cualquier proveedor de tu preferencia (GKE, EKS, AKS, un VPS con `k3s`, etc.) — lo único que cambia es cómo se crea el clúster; instalar ArgoCD, exponerlo y conectar el pipeline es igual en todos.
 
 Guía paso a paso completa: **[`docs/despliegue-digitalocean.md`](./docs/despliegue-digitalocean.md)**
+Diagramas (local vs nube, infraestructura DOKS, secuencia completa): **[`diagrams/despliegue-digitalocean.md`](./diagrams/despliegue-digitalocean.md)**
 
 Resumen de lo que cubre:
 
