@@ -11,7 +11,7 @@ spec:
 
   # --- Fuente: repositorio Git con los charts de Helm ---
   source:
-    repoURL: https://github.com/TU-USUARIO/TU-REPO.git  # <-- reemplazar
+    repoURL: https://github.com/MAS-SABANA/MAS-01-ARQ-03-K8S.git
     targetRevision: main                                  # rama a observar
     path: helm/microservice-chart                         # ruta del chart dentro del repo
 

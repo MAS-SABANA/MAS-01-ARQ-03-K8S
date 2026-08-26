@@ -6,7 +6,10 @@ echo "==> Creando namespace argocd..."
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 
 echo "==> Instalando ArgoCD (versión estable)..."
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# --server-side evita el límite de 256KB en la anotación last-applied-configuration
+# que kubectl apply normal excede con el CRD applicationsets.argoproj.io
+kubectl apply -n argocd --server-side --force-conflicts \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 echo "==> Esperando que los pods estén listos..."
 kubectl wait --for=condition=available --timeout=120s deployment/argocd-server -n argocd

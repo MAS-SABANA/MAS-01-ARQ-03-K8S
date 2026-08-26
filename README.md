@@ -153,11 +153,11 @@ kubectl create namespace microservice
 kubectl get nodes
 ```
 
-Ver componentes K8s desplegados en [`diagrams/k8s-componentes.md`](./diagrams/k8s-componentes.md).
-
 ---
 
 ## Paso 4 – Helm
+
+Ver componentes K8s desplegados en [`diagrams/k8s-componentes.md`](./diagrams/k8s-componentes.md).
 
 ### Instalar con valores por defecto
 
@@ -208,6 +208,17 @@ chmod +x argocd/install-argocd.sh
 
 El script crea el namespace `argocd`, aplica el manifiesto oficial, espera que el servidor esté listo e imprime la contraseña inicial de `admin`.
 
+### Obtener la contraseña del admin
+
+ArgoCD genera una contraseña inicial aleatoria y la guarda como `Secret` de Kubernetes (no es un valor fijo). El script del paso anterior ya la imprime al final, pero si la necesitas de nuevo (o la perdiste de vista en el output), recupérala así:
+
+```bash
+kubectl get secret argocd-initial-admin-secret -n argocd \
+  -o jsonpath="{.data.password}" | base64 -d && echo
+```
+
+> El valor viene en Base64 dentro del Secret (así es como Kubernetes guarda cualquier Secret), por eso hay que decodificarlo con `base64 -d` para leerlo en texto plano. Guárdala: la usarás en el siguiente paso para el login.
+
 ### Acceder a la UI
 
 ```bash
@@ -219,9 +230,8 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 ```bash
 argocd login localhost:8080 --username admin --password <PASSWORD> --insecure
-argocd repo add https://github.com/TU-USUARIO/TU-REPO.git
+argocd repo add https://github.com/MAS-SABANA/MAS-01-ARQ-03-K8S.git
 
-# Editar argocd/application.yaml → repoURL con tu repo real
 kubectl apply -f argocd/application.yaml
 
 argocd app get microservice-demo
