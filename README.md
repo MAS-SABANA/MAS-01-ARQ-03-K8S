@@ -153,6 +153,16 @@ kubectl create namespace microservice
 kubectl get nodes
 ```
 
+**Ejemplo:**
+
+<img src="./images/01-minikube-start.png" width="700" alt="minikube start --driver=docker"/>
+
+*Figura 1. `minikube start --driver=docker` levantando el clúster local.*
+
+<img src="./images/02-namespace-y-nodos.png" width="700" alt="kubectl create namespace y kubectl get nodes"/>
+
+*Figura 2. Namespace `microservice` creado y `kubectl get nodes` confirmando que el clúster responde.*
+
 ---
 
 ## Paso 4 – Helm
@@ -168,6 +178,12 @@ helm install microservice-demo ./helm/microservice-chart \
   --set image.tag=latest
 ```
 
+**Ejemplo:**
+
+<img src="./images/03-helm-install.png" width="700" alt="helm install microservice-demo"/>
+
+*Figura 3. `helm install` creando la release `microservice-demo` (REVISION: 1).*
+
 ### Override para producción
 
 ```bash
@@ -176,6 +192,12 @@ helm upgrade microservice-demo ./helm/microservice-chart \
   -f ./helm/microservice-chart/values-prod.yaml \
   --set image.tag=abc1234
 ```
+
+**Ejemplo:**
+
+<img src="./images/04-helm-upgrade-prod.png" width="700" alt="helm upgrade con values-prod.yaml"/>
+
+*Figura 4. `helm upgrade` aplicando el override de producción (REVISION: 2).*
 
 ### Verificar el despliegue
 
@@ -188,6 +210,20 @@ kubectl get svc -n microservice
 kubectl port-forward svc/microservice-demo-microservice-chart 8080:80 -n microservice
 curl http://localhost:8080/health
 ```
+
+**Ejemplo:**
+
+<img src="./images/05-helm-list-pods-svc.png" width="700" alt="helm list, kubectl get pods y kubectl get svc"/>
+
+*Figura 5. `helm list`, `kubectl get pods` (3 réplicas por el override de prod) y `kubectl get svc`.*
+
+<img src="./images/06-port-forward-microservicio.png" width="700" alt="kubectl port-forward al Service del microservicio"/>
+
+*Figura 6. `kubectl port-forward` exponiendo el Service en `localhost:8080`.*
+
+<img src="./images/07-curl-health.png" width="700" alt="curl http://localhost:8080/health"/>
+
+*Figura 7. `curl http://localhost:8080/health` respondiendo `{"status":"ok", ...}` a través del port-forward.*
 
 ### Desinstalar
 
@@ -208,6 +244,12 @@ chmod +x argocd/install-argocd.sh
 
 El script crea el namespace `argocd`, aplica el manifiesto oficial, espera que el servidor esté listo e imprime la contraseña inicial de `admin`.
 
+**Ejemplo:**
+
+<img src="./images/08-argocd-instalado.png" width="700" alt="ArgoCD instalado, mensaje final del script"/>
+
+*Figura 8. Mensaje final de `install-argocd.sh`: ArgoCD listo y URL de acceso.*
+
 ### Obtener la contraseña del admin
 
 ArgoCD genera una contraseña inicial aleatoria y la guarda como `Secret` de Kubernetes (no es un valor fijo). El script del paso anterior ya la imprime al final, pero si la necesitas de nuevo (o la perdiste de vista en el output), recupérala así:
@@ -226,6 +268,12 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 # https://localhost:8080  |  usuario: admin
 ```
 
+**Ejemplo:**
+
+<img src="./images/09-argocd-ui-login.png" width="700" alt="Pantalla de login de ArgoCD"/>
+
+*Figura 9. Pantalla de login de la UI de ArgoCD en `https://localhost:8080`.*
+
 ### Configurar repositorio y desplegar
 
 ```bash
@@ -240,9 +288,46 @@ argocd app sync microservice-demo
 
 Desde este punto ArgoCD **observa `main`** y sincroniza automáticamente cualquier cambio en `helm/microservice-chart/`.
 
+**Ejemplo:**
+
+<img src="./images/10-argocd-login-repo-add.png" width="700" alt="argocd login y argocd repo add"/>
+
+*Figura 10. `argocd login` autenticado con éxito y `argocd repo add` registrando el repositorio.*
+
+<img src="./images/11-argocd-ui-dashboard.png" width="700" alt="Dashboard de ArgoCD con la app microservice-demo"/>
+
+*Figura 11. La `Application` `microservice-demo` visible en el dashboard de ArgoCD, en estado Synced.*
+
+<img src="./images/12-argocd-apply-app-get.png" width="700" alt="kubectl apply -f application.yaml y argocd app get"/>
+
+*Figura 12. `kubectl apply -f argocd/application.yaml` y detalle de `argocd app get microservice-demo`.*
+
+<img src="./images/13-argocd-app-sync.png" width="700" alt="argocd app sync microservice-demo"/>
+
+*Figura 13. `argocd app sync microservice-demo` sincronizado con éxito (`Phase: Succeeded`).*
+
 ---
 
-## Paso 6 – Pipeline CI/CD (GitHub Actions)
+## Paso 6 – Configuración de DigitalOcean (o nube de preferencia)
+
+Hasta el Paso 5, ArgoCD corre únicamente en tu clúster local (minikube) — accesible solo desde tu propia máquina. Para que el pipeline de CI/CD del **Paso 7** pueda desplegar de verdad (el job `deploy` corre en un runner de GitHub, no en tu computador), ArgoCD necesita vivir en un clúster con una **dirección alcanzable desde internet**.
+
+Este paso mueve ArgoCD de minikube a un clúster Kubernetes gestionado en la nube. La guía usa **DigitalOcean Kubernetes (DOKS)** como ejemplo (por sus créditos gratuitos y su simplicidad), pero el mismo procedimiento aplica a cualquier proveedor de tu preferencia (GKE, EKS, AKS, un VPS con `k3s`, etc.) — lo único que cambia es cómo se crea el clúster; instalar ArgoCD, exponerlo y conectar el pipeline es igual en todos.
+
+Guía paso a paso completa: **[`docs/despliegue-digitalocean.md`](./docs/despliegue-digitalocean.md)**
+
+Resumen de lo que cubre:
+
+1. Crear cuenta y reclamar créditos gratuitos
+2. Instalar `doctl` (CLI de DigitalOcean) y crear el clúster DOKS
+3. Instalar ArgoCD en ese clúster (mismo script del Paso 5)
+4. Exponer `argocd-server` con un `Service` tipo `LoadBalancer` (IP pública real)
+5. Configurar `ARGOCD_SERVER` y `ARGOCD_PASSWORD` en GitHub con esos valores reales
+6. **Borrar el clúster al terminar**, para no seguir consumiendo créditos
+
+---
+
+## Paso 7 – Pipeline CI/CD (GitHub Actions)
 
 El pipeline en `.github/workflows/ci-cd.yaml` se dispara en cada **push a `main`** que toque `microservice/`, `helm/` o el propio workflow.
 
@@ -279,6 +364,8 @@ Ve a **Settings → Secrets and variables → Actions** y agrega:
 | `DOCKERHUB_TOKEN`    | Token de acceso de Docker Hub      |
 | `ARGOCD_SERVER`      | IP o dominio del servidor ArgoCD   |
 | `ARGOCD_PASSWORD`    | Contraseña del admin de ArgoCD     |
+
+> ⚠️ `ARGOCD_SERVER` debe ser una dirección **alcanzable desde internet** — el job `deploy` corre en un runner de GitHub, no en tu computador. Si ArgoCD solo vive en minikube (local), este job no puede conectarse. Guía paso a paso para desplegar ArgoCD en un clúster real y que el pipeline funcione de punta a punta: [`docs/despliegue-digitalocean.md`](./docs/despliegue-digitalocean.md).
 
 ---
 
