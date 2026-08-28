@@ -9,5 +9,6 @@ maintainers:
     email: santiagolopezamaya95@gmail.com
 keywords:
   - microservice
-  - flask
+  - nodejs
+  - express
   - kubernetes
