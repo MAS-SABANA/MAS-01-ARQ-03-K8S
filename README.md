@@ -6,6 +6,15 @@
 
 ---
 
+## Integrantes
+
+- Juan Carlos Forero Galindo
+- Fernanda Rodriguez
+- Santiago Lopez
+- Sebastian Torres Acosta
+
+---
+
 ## Estructura del repositorio
 
 ```
