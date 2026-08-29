@@ -75,6 +75,16 @@ kubectl get nodes
 
 > El contexto de minikube **no desaparece**, queda disponible como otro contexto más. Para volver a él posteriormente: `kubectl config get-contexts` y luego `kubectl config use-context minikube`.
 
+**Ejemplo:**
+
+<img src="../images/14-doctl-cluster-create.png" width="700" alt="doctl kubernetes cluster create con --wait"/>
+
+*Figura 14. `doctl kubernetes cluster create` con `--wait`, clúster creado y `kubectl config current-context` confirmando el contexto de DigitalOcean.*
+
+<img src="../images/15-do-dashboard-cluster.png" width="700" alt="Dashboard de DigitalOcean mostrando el cluster microservice-demo"/>
+
+*Figura 15. Panel web de DigitalOcean confirmando el clúster `microservice-demo`, 1 nodo en estado Running.*
+
 ## 4. Instalar ArgoCD en el clúster remoto
 
 Es el mismo script utilizado en el entorno local — como `kubectl` ahora apunta a DOKS, la instalación queda ahí:
@@ -82,6 +92,18 @@ Es el mismo script utilizado en el entorno local — como `kubectl` ahora apunta
 ```bash
 ./argocd/install-argocd.sh
 ```
+
+Verificar que los 7 componentes de ArgoCD queden en `Running` en este clúster:
+
+```bash
+kubectl get pods -n argocd
+```
+
+**Ejemplo:**
+
+<img src="../images/16-argocd-pods-doks.png" width="700" alt="kubectl get pods -n argocd en DOKS"/>
+
+*Figura 16. Los 7 componentes de ArgoCD (`server`, `redis`, `repo-server`, `dex-server`, etc.) en estado `Running` dentro del clúster DOKS.*
 
 ## 5. Exponer `argocd-server` con una IP pública real
 
@@ -98,6 +120,12 @@ kubectl get svc argocd-server -n argocd --watch
 # EXTERNAL-IP pasa de <pending> a una IP real, ej: 143.198.xxx.xxx
 # Ctrl+C una vez aparezca la IP
 ```
+
+**Ejemplo:**
+
+<img src="../images/17-argocd-loadbalancer-ip.png" width="700" alt="kubectl patch svc y EXTERNAL-IP asignada"/>
+
+*Figura 17. `kubectl patch svc argocd-server` aplicado y `EXTERNAL-IP` asignada por DigitalOcean (`167.172.2.161`).*
 
 ## 6. Obtener la contraseña del admin (en este clúster nuevo)
 
@@ -125,6 +153,16 @@ argocd app sync microservice-demo
 argocd app get microservice-demo
 ```
 
+**Ejemplo:**
+
+<img src="../images/18-argocd-app-get-doks.png" width="700" alt="argocd app get microservice-demo en DOKS, Synced/Healthy"/>
+
+*Figura 18. `argocd app get microservice-demo` mostrando `Sync Status: Synced` y `Health Status: Healthy` contra el clúster real de DigitalOcean, con la URL pública (`167.172.2.161`).*
+
+<img src="../images/19-pods-microservice-doks.png" width="700" alt="kubectl get pods -n microservice en DOKS"/>
+
+*Figura 19. Los pods del microservicio corriendo en el clúster de DigitalOcean, `1/1 Running`.*
+
 ## 8. Configurar los secrets en GitHub
 
 **Settings → Secrets and variables → Actions**:
@@ -136,15 +174,49 @@ argocd app get microservice-demo
 
 `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` ya deberían estar configurados desde el Paso 7 del README — no cambian.
 
+**Ejemplo:**
+
+<img src="../images/20-github-secrets.png" width="700" alt="Repository secrets en GitHub: ARGOCD_PASSWORD, ARGOCD_SERVER, DOCKERHUB_TOKEN, DOCKERHUB_USERNAME"/>
+
+*Figura 20. Los 4 secrets configurados en GitHub (Settings → Secrets and variables → Actions), con `ARGOCD_PASSWORD` y `ARGOCD_SERVER` actualizados con los valores del clúster de DigitalOcean.*
+
 ## 9. Probar el pipeline completo
 
-Realizar un cambio pequeño en `microservice/` (por ejemplo, un texto en `/health`) y hacer `git push` a `main`. El job `build` construye y publica la imagen; el job `deploy` ahora sí puede conectarse al `ARGOCD_SERVER` real y ejecutar `argocd app sync` de forma efectiva, desde un runner en la nube de GitHub hacia el clúster en la nube de DigitalOcean.
+Realizar un cambio pequeño en `microservice/` (por ejemplo, un texto en el endpoint `/`) y hacer `git push` a `main`. El job `build` construye y publica la imagen; el job `deploy` ahora sí puede conectarse al `ARGOCD_SERVER` real y ejecutar `argocd app sync` de forma efectiva, desde un runner en la nube de GitHub hacia el clúster en la nube de DigitalOcean.
+
+**Ejemplo:**
+
+<img src="../images/21-pipeline-verde-completo.png" width="700" alt="Pipeline completo en verde: build y deploy exitosos"/>
+
+*Figura 21. Workflow completo (`build` + `deploy`) en verde, desplegando contra el clúster real de DigitalOcean.*
+
+<img src="../images/22-argocd-arbol-recursos.png" width="700" alt="Vista de arbol de ArgoCD: Application, Service, Deployment, ReplicaSets, Pods"/>
+
+*Figura 22. Vista de árbol de la `Application` en la UI de ArgoCD, mostrando la jerarquía completa: `Application` → `Service`/`Deployment` → historial de `ReplicaSets` → `Pods` activos.*
+
+Para verificar en vivo que un `push` real dispara un **rolling update** sin downtime, se puede dejar corriendo en una terminal:
+
+```bash
+kubectl get pods -n microservice --watch
+```
+
+y en paralelo hacer el `push` a `main`. Se observa cómo Kubernetes crea los pods nuevos (`ContainerCreating` → `Running`) antes de terminar los anteriores (`Terminating`), en línea con la estrategia de `RollingUpdate` del `Deployment`.
+
+**Ejemplo:**
+
+<img src="../images/23-rolling-update-push.png" width="700" alt="kubectl get pods --watch mostrando el rolling update tras un push"/>
+
+*Figura 23. `kubectl get pods -n microservice` mostrando el `ReplicaSet` nuevo con pods `Running`, reemplazando al anterior tras el `push`.*
 
 Verificar el resultado apuntando `curl` a la IP pública del `Service` del microservicio (no al de ArgoCD):
 
 ```bash
 kubectl get svc -n microservice
 ```
+
+> **Nota — bugs reales detectados y corregidos durante esta prueba:** al ejecutar el flujo completo por primera vez de punta a punta, aparecieron dos problemas de integración que no se manifestaban antes porque el `deploy` nunca había llegado a completarse contra un ArgoCD real:
+> 1. **Prioridad de tags en `docker/metadata-action`**: el tag `latest` tenía mayor prioridad que el `sha`, causando que `steps.meta.outputs.version` siempre devolviera `latest` en vez del hash del commit. Se corrigió fijando `priority=200` al tag `sha` y `priority=100` a `latest` en la configuración de `docker/metadata-action`.
+> 2. **Condición de carrera entre `syncPolicy.automated` y el `sync` manual del pipeline**: al tener sincronización automática activa en `application.yaml`, el `argocd app sync` del pipeline a veces colisionaba con un sync automático ya en curso (`FailedPrecondition: another operation is already in progress`). Se corrigió agregando `argocd app wait --operation` antes del `sync` manual, para esperar a que cualquier operación en curso termine primero.
 
 ---
 
@@ -161,6 +233,12 @@ doctl compute load-balancer delete <LB-ID>
 ```
 
 Confirmar en el [panel web de DigitalOcean](https://cloud.digitalocean.com/kubernetes/clusters) → **Kubernetes** y **Networking → Load Balancers** que no queden recursos activos.
+
+**Ejemplo:**
+
+<img src="../images/24-cluster-eliminado.png" width="700" alt="doctl kubernetes cluster delete confirmado"/>
+
+*Figura 24. `doctl kubernetes cluster delete microservice-demo` confirmado — clúster eliminado y credenciales removidas del `kubeconfig` local.*
 
 ---
 

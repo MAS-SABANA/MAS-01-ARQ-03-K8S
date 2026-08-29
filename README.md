@@ -317,7 +317,7 @@ Desde este punto ArgoCD **observa `main`** y sincroniza automáticamente cualqui
 
 ---
 
-## Paso 6 – Configuración de DigitalOcean (o nube de preferencia)
+## Paso 6 – Configuración de DigitalOcean
 
 Hasta el Paso 5, ArgoCD corre únicamente en el clúster local (minikube), accesible solo desde la máquina en local. Para que el pipeline de CI/CD del **Paso 7** pueda desplegar de verdad (el job `deploy` corre en un runner de GitHub, no en la máquina local), ArgoCD necesita vivir en un clúster con una **dirección alcanzable desde internet**.
 
