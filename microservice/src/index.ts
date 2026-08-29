@@ -17,7 +17,7 @@ interface Item {
 // ── Rutas ─────────────────────────────────────────────────────
 app.get('/', (_req: Request, res: Response) => {
   res.json({
-    message: 'Microservicio K8s Demo con despliegue en la nube - v7 (Version video)',
+    message: 'Microservicio K8s Demo con despliegue en la nube - v8 (Version video)',
     service: SERVICE_NAME,
     version: SERVICE_VERSION,
     hostname: os.hostname(),
