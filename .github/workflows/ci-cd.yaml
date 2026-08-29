@@ -89,7 +89,8 @@ jobs:
 
       - name: Sincronizar aplicación
         run: |
-          argocd app sync microservice-demo --timeout 120 --retry-limit 3
+          argocd app wait microservice-demo --timeout 60 --operation || true
+          argocd app sync microservice-demo --timeout 120
 
       - name: Esperar rollout
         run: |
