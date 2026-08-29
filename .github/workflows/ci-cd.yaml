@@ -43,8 +43,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix=,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=,format=short,priority=200
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }},priority=100
 
       - name: Build y Push
         uses: docker/build-push-action@v5
