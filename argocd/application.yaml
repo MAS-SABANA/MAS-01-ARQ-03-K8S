@@ -19,10 +19,6 @@ spec:
       releaseName: microservice-demo
       valueFiles:
         - values.yaml
-      # Parámetros que el pipeline puede sobrescribir vía argocd app set
-      parameters:
-        - name: image.tag
-          value: "latest"
 
   # --- Destino: clúster y namespace ---
   destination:
